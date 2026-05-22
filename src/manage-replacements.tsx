@@ -22,7 +22,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { exportReplacementsToJson, parseImportedReplacements } from "./lib/import-export";
 import { cloneReplacement, createReplacement, deleteReplacement, updateReplacement } from "./lib/operations";
-import { replacementSearchKeywords } from "./lib/search";
+import { replacementListRow, type ReplacementListRowTag } from "./lib/replacement-list-row";
 import { SystemReplacementStore } from "./lib/system-store";
 import { normalizeTagColors, tagColorFor, TAG_COLOR_OPTIONS, type TagColorName, type TagColorsByTag } from "./lib/tag-colors";
 import type { ReplacementInput, TextReplacement } from "./lib/types";
@@ -103,8 +103,7 @@ export default function Command() {
   return (
     <List
       isLoading={isLoading}
-      isShowingDetail
-      searchBarPlaceholder="Search triggers, replacement text, or tags"
+      searchBarPlaceholder="Search Text Replacements and tags"
       navigationTitle="Text Replacement Manager"
       actions={
         <GlobalActions
@@ -157,40 +156,15 @@ function ReplacementItem(props: {
   onPersistTagColors(next: TagColorsByTag): Promise<void>;
 }) {
   const { replacement, replacements, tagColors, onPersist, onPersistTagColors } = props;
-  const tagAccessories = replacement.tags.length
-    ? replacement.tags.map((tag) => ({
-        tag: { value: tag, color: raycastColors[tagColorFor(tag, tagColors)] },
-        tooltip: `${tag} tag`,
-      }))
-    : [{ text: "No tags" }];
+  const row = replacementListRow(replacement, tagColors);
 
   return (
     <List.Item
-      icon={replacement.enabled ? Icon.Text : Icon.CircleDisabled}
-      title={replacement.trigger}
-      subtitle={replacement.replacementText}
-      keywords={replacementSearchKeywords(replacement)}
-      accessories={[...tagAccessories, { icon: replacement.enabled ? Icon.CheckCircle : Icon.XMarkCircle }]}
-      detail={
-        <List.Item.Detail
-          markdown={[
-            `# ${escapeMarkdown(replacement.trigger)}`,
-            "",
-            "## Replacement Text",
-            replacement.replacementText ? escapeMarkdown(replacement.replacementText) : "_Empty_",
-            "",
-            "## Tags",
-            replacement.tags.length ? replacement.tags.map((tag) => `- ${escapeMarkdown(tag)}`).join("\n") : "_None_",
-          ].join("\n")}
-          metadata={
-            <List.Item.Detail.Metadata>
-              <List.Item.Detail.Metadata.Label title="Trigger" text={replacement.trigger} />
-              <List.Item.Detail.Metadata.Label title="Enabled" text={replacement.enabled ? "Yes" : "No"} />
-              <List.Item.Detail.Metadata.Label title="UUID" text={replacement.uuid} />
-            </List.Item.Detail.Metadata>
-          }
-        />
-      }
+      icon={statusIcon(row.status)}
+      title={{ value: row.trigger, tooltip: row.trigger }}
+      subtitle={{ value: row.replacementText, tooltip: row.replacementText }}
+      keywords={row.keywords}
+      accessories={tagAccessories(row.tags)}
       actions={
         <ActionPanel>
           <ActionPanel.Section>
@@ -263,6 +237,25 @@ function ReplacementItem(props: {
       }
     />
   );
+}
+
+function statusIcon(status: "enabled" | "disabled") {
+  return status === "enabled"
+    ? { source: Icon.CheckCircle, tintColor: Color.Green }
+    : { source: Icon.XMarkCircle, tintColor: Color.SecondaryText };
+}
+
+function tagAccessories(tags: ReplacementListRowTag[]): List.Item.Accessory[] {
+  return tags.length
+    ? tags.map((tag) => ({
+        tag: { value: tag.name, color: raycastColorForTag(tag.color) },
+        tooltip: `${tag.name} tag`,
+      }))
+    : [{ text: { value: "No tags", color: Color.SecondaryText } }];
+}
+
+function raycastColorForTag(color: ReplacementListRowTag["color"]): Color.ColorLike {
+  return color in raycastColors ? raycastColors[color as TagColorName] : color;
 }
 
 function GlobalActions(props: {
@@ -554,8 +547,4 @@ function parseJson(value: string | undefined): unknown {
 
 function formatError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-function escapeMarkdown(value: string): string {
-  return value.replaceAll("\\", "\\\\").replaceAll("*", "\\*").replaceAll("_", "\\_").replaceAll("#", "\\#");
 }

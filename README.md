@@ -1,3 +1,12 @@
+---
+Title: Text Replacement Manager
+Author: Maxwell Ludden <maxludden@me.com>
+Description: Manage macOS Text Replacements from Raycast.
+Date: 2026-05-20
+GitHub-Repo: 
+
+![Text Replacement Manager](assets/textReplacementManagerBanner@3x.png)
+
 # Text Replacement Manager
 
 Manage macOS Text Replacements from Raycast.
@@ -6,7 +15,7 @@ This Raycast extension reads the system Text Replacement list, lets you create a
 
 ## Features
 
-- Browse macOS Text Replacements in Raycast.
+- Browse macOS Text Replacements in ![Raycast](https://raycast.com).
 - Create, edit, clone, and delete replacements.
 - Validate unique triggers with the macOS-friendly `^\S{1,64}$` pattern.
 - Add tags to replacements for search and organization.
