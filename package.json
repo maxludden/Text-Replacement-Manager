@@ -18,6 +18,12 @@
       "title": "Manage Text Replacements",
       "description": "View, create, edit, clone, delete, import, and export macOS Text Replacements.",
       "mode": "view"
+    },
+    {
+      "name": "create-replacement",
+      "title": "Create Text Replacement",
+      "description": "Create a new macOS Text Replacement.",
+      "mode": "view"
     }
   ],
   "scripts": {

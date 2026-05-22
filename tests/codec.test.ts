@@ -17,9 +17,30 @@ describe("system replacement mapping", () => {
     );
 
     expect(replacements).toEqual([
-      { uuid: "uuid-omw", trigger: "omw", replacementText: "On my way!", tags: ["Favorite"], enabled: true },
       { uuid: expect.any(String), trigger: "brb", replacementText: "Be right back", tags: [], enabled: true },
       { uuid: expect.any(String), trigger: "off", replacementText: "Disabled", tags: [], enabled: false },
+      { uuid: "uuid-omw", trigger: "omw", replacementText: "On my way!", tags: ["Favorite"], enabled: true },
+    ]);
+  });
+
+  it("sorts merged replacements by trigger using natural order", () => {
+    const replacements = mergeSystemWithMetadata(
+      [
+        { replace: "maxl", with: "maxludden" },
+        { replace: "_.25", with: "¼" },
+        { replace: "_cmd", with: "⌘" },
+        { replace: "att", with: "AT&T" },
+        { replace: "_.5", with: "½" },
+      ],
+      {},
+    );
+
+    expect(replacements.map((replacement) => replacement.trigger)).toEqual([
+      "_.5",
+      "_.25",
+      "_cmd",
+      "att",
+      "maxl",
     ]);
   });
 

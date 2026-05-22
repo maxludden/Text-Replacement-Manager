@@ -15,7 +15,7 @@ import {
   Toast,
   useNavigation,
 } from "@raycast/api";
-import { FormValidation, useForm } from "@raycast/utils";
+import { useForm } from "@raycast/utils";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { useEffect, useMemo, useState } from "react";
@@ -36,19 +36,17 @@ import {
 } from "./lib/replacement-list-row";
 import { SystemReplacementStore } from "./lib/system-store";
 import {
+  DEFAULT_TAG_COLOR,
   normalizeTagColors,
+  normalizeTagColor,
   tagColorFor,
   TAG_COLOR_OPTIONS,
   type TagColorName,
+  type TagColorValue,
   type TagColorsByTag,
 } from "./lib/tag-colors";
-import type { ReplacementInput, TextReplacement } from "./lib/types";
-import {
-  applyTagSuggestion,
-  normalizeTags,
-  suggestTags,
-  triggerPattern,
-} from "./lib/validation";
+import type { TextReplacement } from "./lib/types";
+import { ReplacementForm } from "./replacement-form";
 
 const store = new SystemReplacementStore({
   supportPath: environment.supportPath,
@@ -438,7 +436,7 @@ function TagColorsForm(props: {
   const { pop } = useNavigation();
 
   async function submit(values: Record<string, string>) {
-    await props.onSubmit(normalizeTagColors(values, props.tags));
+    await props.onSubmit(normalizeTagColorFormValues(values, props.tags));
     pop();
   }
 
@@ -456,23 +454,39 @@ function TagColorsForm(props: {
       }
     >
       {props.tags.length ? (
-        props.tags.map((tag) => (
-          <Form.Dropdown
-            key={tag}
-            id={tag}
-            title={tag}
-            defaultValue={tagColorFor(tag, props.tagColors)}
-          >
-            {TAG_COLOR_OPTIONS.map((color) => (
-              <Form.Dropdown.Item
-                key={color}
-                value={color}
-                title={color === "SecondaryText" ? "Default" : color}
-                icon={{ source: Icon.Circle, tintColor: raycastColors[color] }}
-              />
-            ))}
-          </Form.Dropdown>
-        ))
+        props.tags.flatMap((tag, index) => {
+          const storedColor = tagColorFor(tag, props.tagColors);
+          const presetColor = presetTagColorValue(storedColor);
+          const customColor = presetColor ? "" : storedColor;
+
+          return [
+            <Form.Dropdown
+              key={`${tag}-preset`}
+              id={tagColorPresetFieldId(index)}
+              title={tag}
+              defaultValue={presetColor ?? DEFAULT_TAG_COLOR}
+            >
+              {TAG_COLOR_OPTIONS.map((color) => (
+                <Form.Dropdown.Item
+                  key={color}
+                  value={color}
+                  title={color === "SecondaryText" ? "Default" : color}
+                  icon={{
+                    source: Icon.Circle,
+                    tintColor: raycastColors[color],
+                  }}
+                />
+              ))}
+            </Form.Dropdown>,
+            <Form.TextField
+              key={`${tag}-custom`}
+              id={tagColorCustomFieldId(index)}
+              title={`${tag} Custom Color`}
+              placeholder="#FF0000, #F00, or red"
+              defaultValue={customColor}
+            />,
+          ];
+        })
       ) : (
         <Form.Description
           title="No Tags"
@@ -483,120 +497,35 @@ function TagColorsForm(props: {
   );
 }
 
-interface ReplacementFormValues {
-  trigger: string;
-  replacementText: string;
-  tags: string;
+function normalizeTagColorFormValues(
+  values: Record<string, string>,
+  tags: string[],
+): TagColorsByTag {
+  return Object.fromEntries(
+    tags.flatMap((tag, index) => {
+      const customColor = normalizeTagColor(
+        values[tagColorCustomFieldId(index)],
+      );
+      const presetColor = normalizeTagColor(
+        values[tagColorPresetFieldId(index)],
+      );
+      const color = customColor ?? presetColor;
+
+      return color ? [[tag, color]] : [];
+    }),
+  );
 }
 
-function ReplacementForm(props: {
-  title: string;
-  submitTitle: string;
-  existing: TextReplacement[];
-  initialReplacement?: TextReplacement;
-  forceCreate?: boolean;
-  onSubmit(input: ReplacementInput): Promise<void>;
-}) {
-  const { pop } = useNavigation();
-  const editingUuid = props.forceCreate
-    ? undefined
-    : props.initialReplacement?.uuid;
-  const existingTags = useMemo(() => {
-    return [...new Set(props.existing.flatMap((item) => item.tags))].sort(
-      (a, b) => a.localeCompare(b),
-    );
-  }, [props.existing]);
-  const { handleSubmit, itemProps, values, setValue, focus } =
-    useForm<ReplacementFormValues>({
-      initialValues: {
-        trigger: props.initialReplacement?.trigger ?? "",
-        replacementText: props.initialReplacement?.replacementText ?? "",
-        tags: props.initialReplacement?.tags.join(", ") ?? "",
-      },
-      validation: {
-        trigger: (value) => {
-          const trigger = value?.trim() ?? "";
-          if (!triggerPattern.test(trigger)) {
-            return "Trigger must be 1-64 non-whitespace characters.";
-          }
-          if (
-            props.existing.some(
-              (item) =>
-                item.trigger === trigger &&
-                item.uuid !== editingUuid &&
-                item.replacementText !== values.replacementText,
-            )
-          ) {
-            return "Trigger must be unique.";
-          }
-        },
-        replacementText: FormValidation.Required,
-      },
-      async onSubmit(values) {
-        await props.onSubmit({
-          trigger: values.trigger,
-          replacementText: values.replacementText,
-          tags: normalizeTags(values.tags),
-        });
-        pop();
-      },
-    });
-  const tagSuggestions = useMemo(
-    () => suggestTags(values.tags, existingTags),
-    [existingTags, values.tags],
-  );
-  const topTagSuggestion = tagSuggestions[0];
+function presetTagColorValue(color: TagColorValue): TagColorName | undefined {
+  return TAG_COLOR_OPTIONS.find((option) => option === color);
+}
 
-  function acceptTagSuggestion(tag: string) {
-    setValue("tags", applyTagSuggestion(values.tags, tag));
-    focus("tags");
-  }
+function tagColorPresetFieldId(index: number): string {
+  return `preset-${index}`;
+}
 
-  return (
-    <Form
-      navigationTitle={props.title}
-      actions={
-        <ActionPanel>
-          {topTagSuggestion ? (
-            <Action
-              icon={Icon.Plus}
-              title={`Use Tag "${topTagSuggestion}"`}
-              shortcut={{ modifiers: [], key: "return" }}
-              onAction={() => acceptTagSuggestion(topTagSuggestion)}
-            />
-          ) : null}
-          <Action.SubmitForm
-            icon={Icon.CheckCircle}
-            title={props.submitTitle}
-            shortcut={{ modifiers: [], key: "return" }}
-            onSubmit={handleSubmit}
-          />
-        </ActionPanel>
-      }
-    >
-      <Form.TextField
-        title="Trigger"
-        placeholder="omw"
-        {...itemProps.trigger}
-      />
-      <Form.TextArea
-        title="Replacement Text"
-        placeholder="On my way!"
-        {...itemProps.replacementText}
-      />
-      <Form.TextField
-        title="Tags"
-        placeholder="personal, travel"
-        {...itemProps.tags}
-      />
-      {tagSuggestions.length ? (
-        <Form.Description
-          title="Matching Tags"
-          text={tagSuggestions.join(", ")}
-        />
-      ) : null}
-    </Form>
-  );
+function tagColorCustomFieldId(index: number): string {
+  return `custom-${index}`;
 }
 
 function ImportForm(props: {

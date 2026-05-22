@@ -10,11 +10,12 @@ Text Replacement Manager reads your system Text Replacement list, lets you creat
 
 - Browse macOS Text Replacements in Raycast.
 - Create, edit, clone, and delete replacements.
+- Open a dedicated Create Text Replacement command when you want to add a replacement without opening the full manager.
 - Merge tags into an existing replacement when creating the same trigger and replacement text again.
 - Search by trigger, replacement text, or tag.
 - Validate unique triggers with the macOS-friendly `^\S{1,64}$` pattern.
 - Add tags to replacements for search and organization.
-- Assign colors to tags for easier visual identification.
+- Assign preset, named, RGB, or 3/6-digit hex colors to tags for easier visual identification.
 - Import and export replacements as JSON.
 - Open macOS Text Replacement settings from Raycast.
 
@@ -23,6 +24,10 @@ Text Replacement Manager reads your system Text Replacement list, lets you creat
 ### Manage Text Replacements
 
 View and manage your macOS Text Replacements in one Raycast list. Use the action panel to create replacements, edit existing rows, clone entries, export JSON, import JSON, set tag colors, reload from macOS, or open System Settings. If System Settings is already open, close and reopen it to see newly synced replacements.
+
+### Create Text Replacement
+
+Open a create form directly from Raycast root search. It uses the same validation, tag suggestions, duplicate tag merge behavior, and macOS sync path as the manager command.
 
 ## Privacy
 
