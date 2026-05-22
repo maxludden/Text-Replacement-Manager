@@ -30,6 +30,37 @@ describe("replacement operations", () => {
     );
   });
 
+  it("merges tags when creating an already existing replacement with matching text", () => {
+    expect(
+      createReplacement(
+        [{ uuid: "uuid-max", trigger: "_max", replacementText: "maxludden", tags: [], enabled: true }],
+        { trigger: "_max", replacementText: "maxludden", tags: "personal" },
+      ),
+    ).toEqual([{ uuid: "uuid-max", trigger: "_max", replacementText: "maxludden", tags: ["personal"], enabled: true }]);
+  });
+
+  it("merges and deduplicates tags when an existing replacement already has tags", () => {
+    expect(
+      createReplacement(
+        [{ uuid: "uuid-max", trigger: "_max", replacementText: "maxludden", tags: ["personal", "team"], enabled: true }],
+        { trigger: "_max", replacementText: "maxludden", tags: "personal, urgent" },
+      ),
+    ).toEqual([
+      { uuid: "uuid-max", trigger: "_max", replacementText: "maxludden", tags: ["personal", "team", "urgent"], enabled: true },
+    ]);
+  });
+
+  it("trims trigger whitespace and merges with an existing matching replacement", () => {
+    expect(
+      createReplacement(
+        [{ uuid: "uuid-max", trigger: "_max", replacementText: "maxludden", tags: ["personal"], enabled: true }],
+        { trigger: "  _max  ", replacementText: "maxludden", tags: "work" },
+      ),
+    ).toEqual([
+      { uuid: "uuid-max", trigger: "_max", replacementText: "maxludden", tags: ["personal", "work"], enabled: true },
+    ]);
+  });
+
   it("clones with a new trigger and deletes by uuid", () => {
     const cloned = cloneReplacement(existing, "uuid-omw", {
       trigger: "omw2",
