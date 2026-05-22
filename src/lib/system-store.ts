@@ -1,9 +1,13 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 import { JsonMetadataStore, type MetadataStore } from "./metadata-store";
-import { defaultExecutor, defaultExecutorOptions, type CommandExecutor } from "./shell";
+import {
+  defaultExecutor,
+  defaultExecutorOptions,
+  type CommandExecutor,
+} from "./shell";
 import {
   mergeSystemWithMetadata,
   metadataFromReplacements,
@@ -23,12 +27,17 @@ export class SystemReplacementStore {
   private readonly executor: CommandExecutor;
 
   constructor(private readonly options: SystemReplacementStoreOptions) {
-    this.metadata = options.metadata ?? new JsonMetadataStore(join(options.supportPath, "metadata.json"));
+    this.metadata =
+      options.metadata ??
+      new JsonMetadataStore(join(options.supportPath, "metadata.json"));
     this.executor = options.executor ?? defaultExecutor;
   }
 
   async readAll(): Promise<TextReplacement[]> {
-    const [items, metadata] = await Promise.all([this.readSystemItems(), this.metadata.read()]);
+    const [items, metadata] = await Promise.all([
+      this.readSystemItems(),
+      this.metadata.read(),
+    ]);
     return mergeSystemWithMetadata(items, metadata);
   }
 
@@ -54,7 +63,9 @@ export class SystemReplacementStore {
 
   async update(updated: TextReplacement): Promise<void> {
     const items = await this.readAll();
-    await this.replaceAll(items.map((item) => (item.uuid === updated.uuid ? updated : item)));
+    await this.replaceAll(
+      items.map((item) => (item.uuid === updated.uuid ? updated : item)),
+    );
   }
 
   async delete(uuid: string): Promise<void> {
@@ -72,7 +83,11 @@ export class SystemReplacementStore {
     const plistPath = join(directory, "GlobalPreferences.plist");
 
     try {
-      await this.executor("defaults", ["export", "NSGlobalDomain", plistPath], defaultExecutorOptions);
+      await this.executor(
+        "defaults",
+        ["export", "NSGlobalDomain", plistPath],
+        defaultExecutorOptions,
+      );
       const json = await this.extractReplacementItems(plistPath);
       return JSON.parse(json) as SystemReplacementItem[];
     } finally {
@@ -84,7 +99,14 @@ export class SystemReplacementStore {
     try {
       return await this.executor(
         "plutil",
-        ["-extract", "NSUserDictionaryReplacementItems", "json", "-o", "-", plistPath],
+        [
+          "-extract",
+          "NSUserDictionaryReplacementItems",
+          "json",
+          "-o",
+          "-",
+          plistPath,
+        ],
         defaultExecutorOptions,
       );
     } catch (error) {
@@ -99,10 +121,17 @@ export class SystemReplacementStore {
     const backupsPath = join(this.options.supportPath, "backups");
     await mkdir(backupsPath, { recursive: true });
     const stamp = new Date().toISOString().replaceAll(":", "-");
-    await writeFile(join(backupsPath, `${stamp}.json`), `${JSON.stringify(items, null, 2)}\n`, "utf8");
+    await writeFile(
+      join(backupsPath, `${stamp}.json`),
+      `${JSON.stringify(items, null, 2)}\n`,
+      "utf8",
+    );
   }
 }
 
 function isMissingReplacementKeyError(error: unknown): boolean {
-  return error instanceof Error && error.message.includes("NSUserDictionaryReplacementItems");
+  return (
+    error instanceof Error &&
+    error.message.includes("NSUserDictionaryReplacementItems")
+  );
 }

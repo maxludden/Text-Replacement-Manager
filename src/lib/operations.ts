@@ -1,13 +1,24 @@
 import { createReplacementId } from "./id";
-import { hasValidationErrors, normalizeTags, validateReplacementInput } from "./validation";
+import {
+  hasValidationErrors,
+  normalizeTags,
+  validateReplacementInput,
+} from "./validation";
 import type { ReplacementInput, TextReplacement } from "./types";
 
-export function createReplacement(existing: TextReplacement[], input: ReplacementInput): TextReplacement[] {
+export function createReplacement(
+  existing: TextReplacement[],
+  input: ReplacementInput,
+): TextReplacement[] {
   ensureValid(input, existing);
   return [...existing, toReplacement(input)];
 }
 
-export function updateReplacement(existing: TextReplacement[], uuid: string, input: ReplacementInput): TextReplacement[] {
+export function updateReplacement(
+  existing: TextReplacement[],
+  uuid: string,
+  input: ReplacementInput,
+): TextReplacement[] {
   ensureValid(input, existing, uuid);
   return existing.map((item) =>
     item.uuid === uuid
@@ -21,7 +32,11 @@ export function updateReplacement(existing: TextReplacement[], uuid: string, inp
   );
 }
 
-export function cloneReplacement(existing: TextReplacement[], uuid: string, input: ReplacementInput): TextReplacement[] {
+export function cloneReplacement(
+  existing: TextReplacement[],
+  uuid: string,
+  input: ReplacementInput,
+): TextReplacement[] {
   const source = existing.find((item) => item.uuid === uuid);
   if (!source) {
     throw new Error("Replacement not found.");
@@ -31,7 +46,10 @@ export function cloneReplacement(existing: TextReplacement[], uuid: string, inpu
   return [...existing, toReplacement(input)];
 }
 
-export function deleteReplacement(existing: TextReplacement[], uuid: string): TextReplacement[] {
+export function deleteReplacement(
+  existing: TextReplacement[],
+  uuid: string,
+): TextReplacement[] {
   return existing.filter((item) => item.uuid !== uuid);
 }
 
@@ -45,7 +63,11 @@ function toReplacement(input: ReplacementInput): TextReplacement {
   };
 }
 
-function ensureValid(input: ReplacementInput, existing: TextReplacement[], editingUuid?: string): void {
+function ensureValid(
+  input: ReplacementInput,
+  existing: TextReplacement[],
+  editingUuid?: string,
+): void {
   const errors = validateReplacementInput(
     {
       trigger: input.trigger.trim(),

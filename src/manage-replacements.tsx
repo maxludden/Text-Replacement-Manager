@@ -20,15 +20,39 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { useEffect, useMemo, useState } from "react";
 
-import { exportReplacementsToJson, parseImportedReplacements } from "./lib/import-export";
-import { cloneReplacement, createReplacement, deleteReplacement, updateReplacement } from "./lib/operations";
-import { replacementListRow, type ReplacementListRowTag } from "./lib/replacement-list-row";
+import {
+  exportReplacementsToJson,
+  parseImportedReplacements,
+} from "./lib/import-export";
+import {
+  cloneReplacement,
+  createReplacement,
+  deleteReplacement,
+  updateReplacement,
+} from "./lib/operations";
+import {
+  replacementListRow,
+  type ReplacementListRowTag,
+} from "./lib/replacement-list-row";
 import { SystemReplacementStore } from "./lib/system-store";
-import { normalizeTagColors, tagColorFor, TAG_COLOR_OPTIONS, type TagColorName, type TagColorsByTag } from "./lib/tag-colors";
+import {
+  normalizeTagColors,
+  tagColorFor,
+  TAG_COLOR_OPTIONS,
+  type TagColorName,
+  type TagColorsByTag,
+} from "./lib/tag-colors";
 import type { ReplacementInput, TextReplacement } from "./lib/types";
-import { applyTagSuggestion, normalizeTags, suggestTags, triggerPattern } from "./lib/validation";
+import {
+  applyTagSuggestion,
+  normalizeTags,
+  suggestTags,
+  triggerPattern,
+} from "./lib/validation";
 
-const store = new SystemReplacementStore({ supportPath: environment.supportPath });
+const store = new SystemReplacementStore({
+  supportPath: environment.supportPath,
+});
 const TAG_COLORS_STORAGE_KEY = "tag-colors";
 const raycastColors: Record<TagColorName, Color> = {
   SecondaryText: Color.SecondaryText,
@@ -95,9 +119,15 @@ export default function Command() {
 
   async function persistTagColors(next: TagColorsByTag) {
     const normalized = normalizeTagColors(next, existingTags);
-    await LocalStorage.setItem(TAG_COLORS_STORAGE_KEY, JSON.stringify(normalized));
+    await LocalStorage.setItem(
+      TAG_COLORS_STORAGE_KEY,
+      JSON.stringify(normalized),
+    );
     setTagColors(normalized);
-    await showToast({ style: Toast.Style.Success, title: "Updated Tag Colors" });
+    await showToast({
+      style: Toast.Style.Success,
+      title: "Updated Tag Colors",
+    });
   }
 
   return (
@@ -116,7 +146,11 @@ export default function Command() {
       }
     >
       {error ? (
-        <List.EmptyView icon={Icon.Warning} title="Unable to Read Text Replacements" description={error} />
+        <List.EmptyView
+          icon={Icon.Warning}
+          title="Unable to Read Text Replacements"
+          description={error}
+        />
       ) : replacements.length === 0 && !isLoading ? (
         <List.EmptyView
           icon={Icon.Text}
@@ -155,7 +189,13 @@ function ReplacementItem(props: {
   onPersist(next: TextReplacement[], title: string): Promise<void>;
   onPersistTagColors(next: TagColorsByTag): Promise<void>;
 }) {
-  const { replacement, replacements, tagColors, onPersist, onPersistTagColors } = props;
+  const {
+    replacement,
+    replacements,
+    tagColors,
+    onPersist,
+    onPersistTagColors,
+  } = props;
   const row = replacementListRow(replacement, tagColors);
 
   return (
@@ -177,7 +217,12 @@ function ReplacementItem(props: {
                   submitTitle="Save Replacement"
                   existing={replacements}
                   initialReplacement={replacement}
-                  onSubmit={(input) => onPersist(updateReplacement(replacements, replacement.uuid, input), "Updating replacement")}
+                  onSubmit={(input) =>
+                    onPersist(
+                      updateReplacement(replacements, replacement.uuid, input),
+                      "Updating replacement",
+                    )
+                  }
                 />
               }
             />
@@ -190,9 +235,17 @@ function ReplacementItem(props: {
                   title="Clone Text Replacement"
                   submitTitle="Create Clone"
                   existing={replacements}
-                  initialReplacement={{ ...replacement, trigger: `${replacement.trigger}-copy` }}
+                  initialReplacement={{
+                    ...replacement,
+                    trigger: `${replacement.trigger}-copy`,
+                  }}
                   forceCreate
-                  onSubmit={(input) => onPersist(cloneReplacement(replacements, replacement.uuid, input), "Cloning replacement")}
+                  onSubmit={(input) =>
+                    onPersist(
+                      cloneReplacement(replacements, replacement.uuid, input),
+                      "Cloning replacement",
+                    )
+                  }
                 />
               }
             />
@@ -212,19 +265,37 @@ function ReplacementItem(props: {
                     },
                   })
                 ) {
-                  await onPersist(deleteReplacement(replacements, replacement.uuid), "Deleting replacement");
+                  await onPersist(
+                    deleteReplacement(replacements, replacement.uuid),
+                    "Deleting replacement",
+                  );
                 }
               }}
             />
           </ActionPanel.Section>
           <ActionPanel.Section>
-            <Action.CopyToClipboard title="Copy Trigger" content={replacement.trigger} shortcut={{ modifiers: ["cmd"], key: "c" }} />
-            <Action.CopyToClipboard title="Copy Replacement Text" content={replacement.replacementText} />
-            <Action.CopyToClipboard title="Copy Replacement JSON" content={exportReplacementsToJson([replacement])} />
+            <Action.CopyToClipboard
+              title="Copy Trigger"
+              content={replacement.trigger}
+              shortcut={{ modifiers: ["cmd"], key: "c" }}
+            />
+            <Action.CopyToClipboard
+              title="Copy Replacement Text"
+              content={replacement.replacementText}
+            />
+            <Action.CopyToClipboard
+              title="Copy Replacement JSON"
+              content={exportReplacementsToJson([replacement])}
+            />
             <Action
               icon={Icon.Download}
               title="Export Selected JSON"
-              onAction={() => exportToSupportPath([replacement], `text-replacement-${replacement.trigger}.json`)}
+              onAction={() =>
+                exportToSupportPath(
+                  [replacement],
+                  `text-replacement-${replacement.trigger}.json`,
+                )
+              }
             />
           </ActionPanel.Section>
           <GlobalActionSections
@@ -254,7 +325,9 @@ function tagAccessories(tags: ReplacementListRowTag[]): List.Item.Accessory[] {
     : [{ text: { value: "No tags", color: Color.SecondaryText } }];
 }
 
-function raycastColorForTag(color: ReplacementListRowTag["color"]): Color.ColorLike {
+function raycastColorForTag(
+  color: ReplacementListRowTag["color"],
+): Color.ColorLike {
   return color in raycastColors ? raycastColors[color as TagColorName] : color;
 }
 
@@ -279,7 +352,8 @@ function GlobalActionSections(props: {
   onPersist(next: TextReplacement[], title: string): Promise<void>;
   onPersistTagColors(next: TagColorsByTag): Promise<void>;
 }) {
-  const { replacements, tagColors, onReload, onPersist, onPersistTagColors } = props;
+  const { replacements, tagColors, onReload, onPersist, onPersistTagColors } =
+    props;
   const existingTags = uniqueTags(replacements);
 
   return (
@@ -294,7 +368,12 @@ function GlobalActionSections(props: {
               title="Create Text Replacement"
               submitTitle="Create Replacement"
               existing={replacements}
-              onSubmit={(input) => onPersist(createReplacement(replacements, input), "Creating replacement")}
+              onSubmit={(input) =>
+                onPersist(
+                  createReplacement(replacements, input),
+                  "Creating replacement",
+                )
+              }
             />
           }
         />
@@ -302,7 +381,13 @@ function GlobalActionSections(props: {
           icon={Icon.Tag}
           title="Set Tag Colors"
           shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
-          target={<TagColorsForm tags={existingTags} tagColors={tagColors} onSubmit={onPersistTagColors} />}
+          target={
+            <TagColorsForm
+              tags={existingTags}
+              tagColors={tagColors}
+              onSubmit={onPersistTagColors}
+            />
+          }
         />
         <Action.Push
           icon={Icon.Upload}
@@ -310,19 +395,36 @@ function GlobalActionSections(props: {
           target={
             <ImportForm
               existing={replacements}
-              onImport={(imported) => onPersist([...replacements, ...imported], "Importing replacements")}
+              onImport={(imported) =>
+                onPersist(
+                  [...replacements, ...imported],
+                  "Importing replacements",
+                )
+              }
             />
           }
         />
         <Action
           icon={Icon.Download}
           title="Export All JSON"
-          onAction={() => exportToSupportPath(replacements, "text-replacements.json")}
+          onAction={() =>
+            exportToSupportPath(replacements, "text-replacements.json")
+          }
         />
       </ActionPanel.Section>
       <ActionPanel.Section>
-        {onReload ? <Action icon={Icon.ArrowClockwise} title="Reload From macOS" onAction={onReload} /> : null}
-        <Action icon={Icon.Gear} title="Open macOS Text Replacement Settings" onAction={openTextReplacementSettings} />
+        {onReload ? (
+          <Action
+            icon={Icon.ArrowClockwise}
+            title="Reload from macOS"
+            onAction={onReload}
+          />
+        ) : null}
+        <Action
+          icon={Icon.Gear}
+          title="Open macOS Text Replacement Settings"
+          onAction={openTextReplacementSettings}
+        />
       </ActionPanel.Section>
     </>
   );
@@ -345,13 +447,22 @@ function TagColorsForm(props: {
       navigationTitle="Set Tag Colors"
       actions={
         <ActionPanel>
-          <Action.SubmitForm icon={Icon.CheckCircle} title="Save Tag Colors" onSubmit={submit} />
+          <Action.SubmitForm
+            icon={Icon.CheckCircle}
+            title="Save Tag Colors"
+            onSubmit={submit}
+          />
         </ActionPanel>
       }
     >
       {props.tags.length ? (
         props.tags.map((tag) => (
-          <Form.Dropdown key={tag} id={tag} title={tag} defaultValue={tagColorFor(tag, props.tagColors)}>
+          <Form.Dropdown
+            key={tag}
+            id={tag}
+            title={tag}
+            defaultValue={tagColorFor(tag, props.tagColors)}
+          >
             {TAG_COLOR_OPTIONS.map((color) => (
               <Form.Dropdown.Item
                 key={color}
@@ -363,7 +474,10 @@ function TagColorsForm(props: {
           </Form.Dropdown>
         ))
       ) : (
-        <Form.Description title="No Tags" text="Create or edit a replacement with tags before assigning colors." />
+        <Form.Description
+          title="No Tags"
+          text="Create or edit a replacement with tags before assigning colors."
+        />
       )}
     </Form>
   );
@@ -384,38 +498,50 @@ function ReplacementForm(props: {
   onSubmit(input: ReplacementInput): Promise<void>;
 }) {
   const { pop } = useNavigation();
-  const editingUuid = props.forceCreate ? undefined : props.initialReplacement?.uuid;
+  const editingUuid = props.forceCreate
+    ? undefined
+    : props.initialReplacement?.uuid;
   const existingTags = useMemo(() => {
-    return [...new Set(props.existing.flatMap((item) => item.tags))].sort((a, b) => a.localeCompare(b));
+    return [...new Set(props.existing.flatMap((item) => item.tags))].sort(
+      (a, b) => a.localeCompare(b),
+    );
   }, [props.existing]);
-  const { handleSubmit, itemProps, values, setValue, focus } = useForm<ReplacementFormValues>({
-    initialValues: {
-      trigger: props.initialReplacement?.trigger ?? "",
-      replacementText: props.initialReplacement?.replacementText ?? "",
-      tags: props.initialReplacement?.tags.join(", ") ?? "",
-    },
-    validation: {
-      trigger: (value) => {
-        const trigger = value?.trim() ?? "";
-        if (!triggerPattern.test(trigger)) {
-          return "Trigger must be 1-64 non-whitespace characters.";
-        }
-        if (props.existing.some((item) => item.trigger === trigger && item.uuid !== editingUuid)) {
-          return "Trigger must be unique.";
-        }
+  const { handleSubmit, itemProps, values, setValue, focus } =
+    useForm<ReplacementFormValues>({
+      initialValues: {
+        trigger: props.initialReplacement?.trigger ?? "",
+        replacementText: props.initialReplacement?.replacementText ?? "",
+        tags: props.initialReplacement?.tags.join(", ") ?? "",
       },
-      replacementText: FormValidation.Required,
-    },
-    async onSubmit(values) {
-      await props.onSubmit({
-        trigger: values.trigger,
-        replacementText: values.replacementText,
-        tags: normalizeTags(values.tags),
-      });
-      pop();
-    },
-  });
-  const tagSuggestions = useMemo(() => suggestTags(values.tags, existingTags), [existingTags, values.tags]);
+      validation: {
+        trigger: (value) => {
+          const trigger = value?.trim() ?? "";
+          if (!triggerPattern.test(trigger)) {
+            return "Trigger must be 1-64 non-whitespace characters.";
+          }
+          if (
+            props.existing.some(
+              (item) => item.trigger === trigger && item.uuid !== editingUuid,
+            )
+          ) {
+            return "Trigger must be unique.";
+          }
+        },
+        replacementText: FormValidation.Required,
+      },
+      async onSubmit(values) {
+        await props.onSubmit({
+          trigger: values.trigger,
+          replacementText: values.replacementText,
+          tags: normalizeTags(values.tags),
+        });
+        pop();
+      },
+    });
+  const tagSuggestions = useMemo(
+    () => suggestTags(values.tags, existingTags),
+    [existingTags, values.tags],
+  );
   const topTagSuggestion = tagSuggestions[0];
 
   function acceptTagSuggestion(tag: string) {
@@ -445,10 +571,27 @@ function ReplacementForm(props: {
         </ActionPanel>
       }
     >
-      <Form.TextField title="Trigger" placeholder="omw" {...itemProps.trigger} />
-      <Form.TextArea title="Replacement Text" placeholder="On my way!" {...itemProps.replacementText} />
-      <Form.TextField title="Tags" placeholder="personal, travel" {...itemProps.tags} />
-      {tagSuggestions.length ? <Form.Description title="Matching Tags" text={tagSuggestions.join(", ")} /> : null}
+      <Form.TextField
+        title="Trigger"
+        placeholder="omw"
+        {...itemProps.trigger}
+      />
+      <Form.TextArea
+        title="Replacement Text"
+        placeholder="On my way!"
+        {...itemProps.replacementText}
+      />
+      <Form.TextField
+        title="Tags"
+        placeholder="personal, travel"
+        {...itemProps.tags}
+      />
+      {tagSuggestions.length ? (
+        <Form.Description
+          title="Matching Tags"
+          text={tagSuggestions.join(", ")}
+        />
+      ) : null}
     </Form>
   );
 }
@@ -469,12 +612,17 @@ function ImportForm(props: {
     async onSubmit(values) {
       try {
         const file = values.files[0];
-        const { accepted, skipped } = parseImportedReplacements(await readFile(file, "utf8"), props.existing);
+        const { accepted, skipped } = parseImportedReplacements(
+          await readFile(file, "utf8"),
+          props.existing,
+        );
         await props.onImport(accepted);
         await showToast({
           style: Toast.Style.Success,
           title: "Imported Text Replacements",
-          message: skipped.length ? `Skipped existing: ${skipped.join(", ")}` : undefined,
+          message: skipped.length
+            ? `Skipped existing: ${skipped.join(", ")}`
+            : undefined,
         });
         pop();
       } catch (error) {
@@ -492,16 +640,28 @@ function ImportForm(props: {
       navigationTitle="Import Text Replacements"
       actions={
         <ActionPanel>
-          <Action.SubmitForm icon={Icon.Upload} title="Import JSON" onSubmit={handleSubmit} />
+          <Action.SubmitForm
+            icon={Icon.Upload}
+            title="Import JSON"
+            onSubmit={handleSubmit}
+          />
         </ActionPanel>
       }
     >
-      <Form.FilePicker title="JSON File" allowMultipleSelection={false} canChooseDirectories={false} {...itemProps.files} />
+      <Form.FilePicker
+        title="JSON File"
+        allowMultipleSelection={false}
+        canChooseDirectories={false}
+        {...itemProps.files}
+      />
     </Form>
   );
 }
 
-async function exportToSupportPath(replacements: TextReplacement[], fileName: string) {
+async function exportToSupportPath(
+  replacements: TextReplacement[],
+  fileName: string,
+) {
   const exportsPath = join(environment.supportPath, "exports");
   await mkdir(exportsPath, { recursive: true });
   const outputPath = join(exportsPath, sanitizeFileName(fileName));
@@ -512,9 +672,9 @@ async function exportToSupportPath(replacements: TextReplacement[], fileName: st
     title: "Exported JSON",
     message: "File path copied to clipboard",
     primaryAction: {
-      title: "Open in VS Code",
+      title: "Open Exported JSON",
       onAction: async (toast) => {
-        await open(outputPath, "com.microsoft.VSCode");
+        await open(outputPath);
         toast.hide();
       },
     },
@@ -530,7 +690,9 @@ function sanitizeFileName(fileName: string): string {
 }
 
 function uniqueTags(replacements: TextReplacement[]): string[] {
-  return [...new Set(replacements.flatMap((item) => item.tags))].sort((a, b) => a.localeCompare(b));
+  return [...new Set(replacements.flatMap((item) => item.tags))].sort((a, b) =>
+    a.localeCompare(b),
+  );
 }
 
 function parseJson(value: string | undefined): unknown {

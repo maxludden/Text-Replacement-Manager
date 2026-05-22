@@ -168,7 +168,10 @@ const cssNamedColors = new Set([
   "yellowgreen",
 ]);
 
-export function normalizeTagColors(raw: unknown, tags: string[]): TagColorsByTag {
+export function normalizeTagColors(
+  raw: unknown,
+  tags: string[],
+): TagColorsByTag {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     return {};
   }
@@ -178,13 +181,18 @@ export function normalizeTagColors(raw: unknown, tags: string[]): TagColorsByTag
 
   return Object.fromEntries(
     Object.entries(colors).flatMap(([tag, color]) => {
-      const normalized = knownTags.has(tag) ? normalizeTagColor(color) : undefined;
+      const normalized = knownTags.has(tag)
+        ? normalizeTagColor(color)
+        : undefined;
       return normalized ? [[tag, normalized]] : [];
     }),
   );
 }
 
-export function tagColorFor(tag: string, colors: TagColorsByTag): TagColorValue {
+export function tagColorFor(
+  tag: string,
+  colors: TagColorsByTag,
+): TagColorValue {
   return colors[tag] ?? DEFAULT_TAG_COLOR;
 }
 
@@ -194,7 +202,11 @@ export function normalizeTagColor(color: unknown): TagColorValue | undefined {
   }
 
   const trimmed = color.trim();
-  if (!trimmed || trimmed.toLocaleLowerCase() === "default" || trimmed === DEFAULT_TAG_COLOR) {
+  if (
+    !trimmed ||
+    trimmed.toLocaleLowerCase() === "default" ||
+    trimmed === DEFAULT_TAG_COLOR
+  ) {
     return undefined;
   }
 
@@ -230,7 +242,9 @@ function isRgbColor(color: string): boolean {
     return false;
   }
 
-  return parts.every((part, index) => (index < 3 ? isRgbChannel(part) : isAlphaChannel(part)));
+  return parts.every((part, index) =>
+    index < 3 ? isRgbChannel(part) : isAlphaChannel(part),
+  );
 }
 
 function isRgbChannel(value: string): boolean {

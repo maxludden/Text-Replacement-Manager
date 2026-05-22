@@ -1,5 +1,9 @@
 import { createReplacementId } from "./id";
-import type { MetadataByTrigger, SystemReplacementItem, TextReplacement } from "./types";
+import type {
+  MetadataByTrigger,
+  SystemReplacementItem,
+  TextReplacement,
+} from "./types";
 
 export function mergeSystemWithMetadata(
   items: SystemReplacementItem[],
@@ -20,7 +24,9 @@ export function mergeSystemWithMetadata(
     });
 }
 
-export function serializeSystemItems(replacements: TextReplacement[]): SystemReplacementItem[] {
+export function serializeSystemItems(
+  replacements: TextReplacement[],
+): SystemReplacementItem[] {
   return replacements.map((item) => ({
     replace: item.trigger,
     with: item.replacementText,
@@ -28,7 +34,9 @@ export function serializeSystemItems(replacements: TextReplacement[]): SystemRep
   }));
 }
 
-export function metadataFromReplacements(replacements: TextReplacement[]): MetadataByTrigger {
+export function metadataFromReplacements(
+  replacements: TextReplacement[],
+): MetadataByTrigger {
   return Object.fromEntries(
     replacements.map((item) => [
       item.trigger,
@@ -40,20 +48,28 @@ export function metadataFromReplacements(replacements: TextReplacement[]): Metad
   );
 }
 
-export function extractSystemItems(exportedDomain: unknown): SystemReplacementItem[] {
+export function extractSystemItems(
+  exportedDomain: unknown,
+): SystemReplacementItem[] {
   if (!exportedDomain || typeof exportedDomain !== "object") {
     return [];
   }
 
-  const domain = exportedDomain as { NSUserDictionaryReplacementItems?: unknown };
+  const domain = exportedDomain as {
+    NSUserDictionaryReplacementItems?: unknown;
+  };
   if (!Array.isArray(domain.NSUserDictionaryReplacementItems)) {
     return [];
   }
 
-  return domain.NSUserDictionaryReplacementItems.filter(isSystemReplacementItem);
+  return domain.NSUserDictionaryReplacementItems.filter(
+    isSystemReplacementItem,
+  );
 }
 
-function isSystemReplacementItem(value: unknown): value is SystemReplacementItem {
+function isSystemReplacementItem(
+  value: unknown,
+): value is SystemReplacementItem {
   if (!value || typeof value !== "object") {
     return false;
   }
@@ -72,7 +88,11 @@ function isEnabledSystemValue(value: SystemReplacementItem["on"]): boolean {
 
 export function toDefaultsWriteValue(items: SystemReplacementItem[]): string {
   const rows = items.map((item) => {
-    const pairs = [`replace = ${toOpenStepString(item.replace)}`, `with = ${toOpenStepString(item.with)}`, `on = ${item.on ? 1 : 0}`];
+    const pairs = [
+      `replace = ${toOpenStepString(item.replace)}`,
+      `with = ${toOpenStepString(item.with)}`,
+      `on = ${item.on ? 1 : 0}`,
+    ];
     return `{ ${pairs.join("; ")}; }`;
   });
 

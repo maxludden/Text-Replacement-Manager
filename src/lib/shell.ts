@@ -16,7 +16,9 @@ export type CommandExecutor = (
 ) => Promise<string>;
 
 export const defaultExecutor: CommandExecutor = async (command, args) => {
-  const result = await execFileAsync(command, args, { maxBuffer: 10 * 1024 * 1024 });
+  const result = await execFileAsync(command, args, {
+    maxBuffer: 10 * 1024 * 1024,
+  });
   return result.stdout;
 };
 

@@ -1,5 +1,9 @@
 import { createReplacementId } from "./id";
-import { hasValidationErrors, normalizeTags, validateReplacementInput } from "./validation";
+import {
+  hasValidationErrors,
+  normalizeTags,
+  validateReplacementInput,
+} from "./validation";
 import type { ImportResult, TextReplacement } from "./types";
 import { ReplacementImportError } from "./types";
 
@@ -10,7 +14,9 @@ interface RawImportItem {
   tags?: unknown;
 }
 
-export function exportReplacementsToJson(replacements: TextReplacement[]): string {
+export function exportReplacementsToJson(
+  replacements: TextReplacement[],
+): string {
   return `${JSON.stringify(
     {
       "Text Replacements": replacements.map((item) => ({
@@ -25,7 +31,10 @@ export function exportReplacementsToJson(replacements: TextReplacement[]): strin
   )}\n`;
 }
 
-export function parseImportedReplacements(contents: string, existing: TextReplacement[]): ImportResult {
+export function parseImportedReplacements(
+  contents: string,
+  existing: TextReplacement[],
+): ImportResult {
   let parsed: unknown;
   try {
     parsed = JSON.parse(contents);
@@ -33,11 +42,19 @@ export function parseImportedReplacements(contents: string, existing: TextReplac
     throw new ReplacementImportError("Import file must be valid JSON.");
   }
 
-  if (!parsed || typeof parsed !== "object" || !Array.isArray((parsed as Record<string, unknown>)["Text Replacements"])) {
-    throw new ReplacementImportError('Import file must contain a "Text Replacements" array.');
+  if (
+    !parsed ||
+    typeof parsed !== "object" ||
+    !Array.isArray((parsed as Record<string, unknown>)["Text Replacements"])
+  ) {
+    throw new ReplacementImportError(
+      'Import file must contain a "Text Replacements" array.',
+    );
   }
 
-  const rawItems = (parsed as { "Text Replacements": RawImportItem[] })["Text Replacements"];
+  const rawItems = (parsed as { "Text Replacements": RawImportItem[] })[
+    "Text Replacements"
+  ];
   const accepted: TextReplacement[] = [];
   const skipped: string[] = [];
   const seenTriggers = new Set<string>();
@@ -45,23 +62,34 @@ export function parseImportedReplacements(contents: string, existing: TextReplac
   for (const raw of rawItems) {
     const replacement = normalizeImportItem(raw);
     if (seenTriggers.has(replacement.trigger)) {
-      throw new ReplacementImportError(`Trigger "${replacement.trigger}" appears more than once in the import file.`);
+      throw new ReplacementImportError(
+        `Trigger "${replacement.trigger}" appears more than once in the import file.`,
+      );
     }
     seenTriggers.add(replacement.trigger);
 
-    const existingItem = existing.find((item) => item.trigger === replacement.trigger);
+    const existingItem = existing.find(
+      (item) => item.trigger === replacement.trigger,
+    );
     if (existingItem) {
       if (existingItem.replacementText === replacement.replacementText) {
         skipped.push(replacement.trigger);
         continue;
       }
 
-      throw new ReplacementImportError(`Trigger "${replacement.trigger}" conflicts with an existing replacement.`);
+      throw new ReplacementImportError(
+        `Trigger "${replacement.trigger}" conflicts with an existing replacement.`,
+      );
     }
 
-    const errors = validateReplacementInput(replacement, [...existing, ...accepted]);
+    const errors = validateReplacementInput(replacement, [
+      ...existing,
+      ...accepted,
+    ]);
     if (hasValidationErrors(errors)) {
-      throw new ReplacementImportError(Object.values(errors)[0] ?? "Import item is invalid.");
+      throw new ReplacementImportError(
+        Object.values(errors)[0] ?? "Import item is invalid.",
+      );
     }
 
     accepted.push({
@@ -78,14 +106,26 @@ export function parseImportedReplacements(contents: string, existing: TextReplac
 
 function normalizeImportItem(raw: RawImportItem): TextReplacement {
   if (!raw || typeof raw !== "object") {
-    throw new ReplacementImportError("Each imported replacement must be an object.");
+    throw new ReplacementImportError(
+      "Each imported replacement must be an object.",
+    );
   }
 
   return {
-    uuid: typeof raw.uuid === "string" && raw.uuid.trim() ? raw.uuid : createReplacementId(),
+    uuid:
+      typeof raw.uuid === "string" && raw.uuid.trim()
+        ? raw.uuid
+        : createReplacementId(),
     trigger: typeof raw.trigger === "string" ? raw.trigger.trim() : "",
-    replacementText: typeof raw["replacement-text"] === "string" ? raw["replacement-text"] : "",
-    tags: normalizeTags(Array.isArray(raw.tags) ? raw.tags.filter((tag): tag is string => typeof tag === "string") : []),
+    replacementText:
+      typeof raw["replacement-text"] === "string"
+        ? raw["replacement-text"]
+        : "",
+    tags: normalizeTags(
+      Array.isArray(raw.tags)
+        ? raw.tags.filter((tag): tag is string => typeof tag === "string")
+        : [],
+    ),
     enabled: true,
   };
 }

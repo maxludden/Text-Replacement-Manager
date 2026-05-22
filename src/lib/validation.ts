@@ -22,8 +22,14 @@ export function normalizeTags(tags: string[] | string | undefined): string[] {
     .filter(Boolean);
 }
 
-export function suggestTags(input: string, existingTags: string[], limit = 5): string[] {
-  const selected = new Set(normalizeTags(input).map((tag) => tag.toLocaleLowerCase()));
+export function suggestTags(
+  input: string,
+  existingTags: string[],
+  limit = 5,
+): string[] {
+  const selected = new Set(
+    normalizeTags(input).map((tag) => tag.toLocaleLowerCase()),
+  );
   const query = input.split(",").at(-1)?.trim().toLocaleLowerCase() ?? "";
   if (!query) {
     return [];
@@ -54,7 +60,11 @@ export function validateReplacementInput(
 
   if (!triggerPattern.test(trigger)) {
     errors.trigger = "Trigger must be 1-64 non-whitespace characters.";
-  } else if (existing.some((item) => item.trigger === trigger && item.uuid !== editingUuid)) {
+  } else if (
+    existing.some(
+      (item) => item.trigger === trigger && item.uuid !== editingUuid,
+    )
+  ) {
     errors.trigger = "Trigger must be unique.";
   }
 
@@ -65,6 +75,8 @@ export function validateReplacementInput(
   return errors;
 }
 
-export function hasValidationErrors(errors: ReplacementValidationErrors): boolean {
+export function hasValidationErrors(
+  errors: ReplacementValidationErrors,
+): boolean {
   return Boolean(errors.trigger || errors.replacementText);
 }
