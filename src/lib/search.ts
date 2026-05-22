@@ -1,6 +1,8 @@
 import type { TextReplacement } from "./types";
 
-export function replacementSearchKeywords(replacement: TextReplacement): string[] {
+export function replacementSearchKeywords(
+  replacement: TextReplacement,
+): string[] {
   return uniqueKeywords([replacement.replacementText, ...replacement.tags]);
 }
 

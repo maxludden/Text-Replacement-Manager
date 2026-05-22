@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .raycast/
+Support/
 .DS_Store
 coverage/
 .env

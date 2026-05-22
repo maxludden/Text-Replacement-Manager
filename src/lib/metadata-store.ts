@@ -23,10 +23,19 @@ export class JsonMetadataStore implements MetadataStore {
 
   async write(metadata: MetadataByTrigger): Promise<void> {
     await mkdir(dirname(this.path), { recursive: true });
-    await writeFile(this.path, `${JSON.stringify(metadata, null, 2)}\n`, "utf8");
+    await writeFile(
+      this.path,
+      `${JSON.stringify(metadata, null, 2)}\n`,
+      "utf8",
+    );
   }
 }
 
 function isNotFound(error: unknown): boolean {
-  return Boolean(error && typeof error === "object" && "code" in error && error.code === "ENOENT");
+  return Boolean(
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    error.code === "ENOENT",
+  );
 }
