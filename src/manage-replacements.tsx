@@ -25,6 +25,7 @@ import {
   parseImportedReplacements,
 } from "./lib/import-export";
 import {
+  addTagsToReplacements,
   cloneReplacement,
   createReplacement,
   deleteReplacement,
@@ -34,18 +35,24 @@ import {
   replacementListRow,
   type ReplacementListRowTag,
 } from "./lib/replacement-list-row";
+import {
+  clearReplacementSelection,
+  selectAllReplacementIds,
+  toggleReplacementSelection,
+} from "./lib/selection";
 import { SystemReplacementStore } from "./lib/system-store";
 import {
   DEFAULT_TAG_COLOR,
-  normalizeTagColors,
   normalizeTagColor,
-  tagColorFor,
+  normalizeTagColors,
   TAG_COLOR_OPTIONS,
+  tagColorFor,
   type TagColorName,
-  type TagColorValue,
   type TagColorsByTag,
+  type TagColorValue,
 } from "./lib/tag-colors";
 import type { TextReplacement } from "./lib/types";
+import { normalizeTags, suggestTags } from "./lib/validation";
 import { ReplacementForm } from "./replacement-form";
 
 const store = new SystemReplacementStore({
@@ -54,21 +61,26 @@ const store = new SystemReplacementStore({
 const TAG_COLORS_STORAGE_KEY = "tag-colors";
 const raycastColors: Record<TagColorName, Color> = {
   SecondaryText: Color.SecondaryText,
+  Magenta: Color.Magenta,
+  Purple: Color.Purple,
   Blue: Color.Blue,
   Green: Color.Green,
-  Magenta: Color.Magenta,
-  Orange: Color.Orange,
-  Purple: Color.Purple,
-  Red: Color.Red,
   Yellow: Color.Yellow,
+  Orange: Color.Orange,
+  Red: Color.Red,
 };
 
 export default function Command() {
   const [replacements, setReplacements] = useState<TextReplacement[]>([]);
   const [tagColors, setTagColors] = useState<TagColorsByTag>({});
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selectedReplacementIds, setSelectedReplacementIds] = useState<
+    string[]
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>();
   const existingTags = useMemo(() => uniqueTags(replacements), [replacements]);
+  const selectedReplacementCount = selectedReplacementIds.length;
 
   async function reload() {
     setIsLoading(true);
@@ -132,11 +144,28 @@ export default function Command() {
     <List
       isLoading={isLoading}
       searchBarPlaceholder="Search Text Replacements and tags"
-      navigationTitle="Text Replacement Manager"
+      navigationTitle={
+        isSelecting
+          ? `${selectedReplacementCount} Selected`
+          : "Text Replacement Manager"
+      }
       actions={
         <GlobalActions
           replacements={replacements}
           tagColors={tagColors}
+          isSelecting={isSelecting}
+          selectedReplacementIds={selectedReplacementIds}
+          onStartSelecting={() => setIsSelecting(true)}
+          onSelectAll={() =>
+            setSelectedReplacementIds(selectAllReplacementIds(replacements))
+          }
+          onClearSelection={() =>
+            setSelectedReplacementIds(clearReplacementSelection())
+          }
+          onStopSelecting={() => {
+            setIsSelecting(false);
+            setSelectedReplacementIds(clearReplacementSelection());
+          }}
           onReload={reload}
           onPersist={persist}
           onPersistTagColors={persistTagColors}
@@ -158,6 +187,19 @@ export default function Command() {
             <GlobalActions
               replacements={replacements}
               tagColors={tagColors}
+              isSelecting={isSelecting}
+              selectedReplacementIds={selectedReplacementIds}
+              onStartSelecting={() => setIsSelecting(true)}
+              onSelectAll={() =>
+                setSelectedReplacementIds(selectAllReplacementIds(replacements))
+              }
+              onClearSelection={() =>
+                setSelectedReplacementIds(clearReplacementSelection())
+              }
+              onStopSelecting={() => {
+                setIsSelecting(false);
+                setSelectedReplacementIds(clearReplacementSelection());
+              }}
               onReload={reload}
               onPersist={persist}
               onPersistTagColors={persistTagColors}
@@ -171,6 +213,28 @@ export default function Command() {
             replacement={replacement}
             replacements={replacements}
             tagColors={tagColors}
+            isSelecting={isSelecting}
+            isSelected={selectedReplacementIds.includes(replacement.uuid)}
+            selectedReplacementIds={selectedReplacementIds}
+            onToggleSelection={(uuid) =>
+              setSelectedReplacementIds((current) =>
+                toggleReplacementSelection(current, uuid),
+              )
+            }
+            onStartSelecting={() => {
+              setIsSelecting(true);
+              setSelectedReplacementIds([replacement.uuid]);
+            }}
+            onSelectAll={() =>
+              setSelectedReplacementIds(selectAllReplacementIds(replacements))
+            }
+            onClearSelection={() =>
+              setSelectedReplacementIds(clearReplacementSelection())
+            }
+            onStopSelecting={() => {
+              setIsSelecting(false);
+              setSelectedReplacementIds(clearReplacementSelection());
+            }}
             onPersist={persist}
             onPersistTagColors={persistTagColors}
           />
@@ -184,6 +248,14 @@ function ReplacementItem(props: {
   replacement: TextReplacement;
   replacements: TextReplacement[];
   tagColors: TagColorsByTag;
+  isSelecting: boolean;
+  isSelected: boolean;
+  selectedReplacementIds: string[];
+  onToggleSelection(uuid: string): void;
+  onStartSelecting(): void;
+  onSelectAll(): void;
+  onClearSelection(): void;
+  onStopSelecting(): void;
   onPersist(next: TextReplacement[], title: string): Promise<void>;
   onPersistTagColors(next: TagColorsByTag): Promise<void>;
 }) {
@@ -191,6 +263,14 @@ function ReplacementItem(props: {
     replacement,
     replacements,
     tagColors,
+    isSelecting,
+    isSelected,
+    selectedReplacementIds,
+    onToggleSelection,
+    onStartSelecting,
+    onSelectAll,
+    onClearSelection,
+    onStopSelecting,
     onPersist,
     onPersistTagColors,
   } = props;
@@ -198,7 +278,7 @@ function ReplacementItem(props: {
 
   return (
     <List.Item
-      icon={statusIcon(row.status)}
+      icon={isSelecting ? selectionIcon(isSelected) : statusIcon(row.status)}
       title={{ value: row.trigger, tooltip: row.trigger }}
       subtitle={{ value: row.replacementText, tooltip: row.replacementText }}
       keywords={row.keywords}
@@ -206,99 +286,152 @@ function ReplacementItem(props: {
       actions={
         <ActionPanel>
           <ActionPanel.Section>
-            <Action.Push
-              icon={Icon.Pencil}
-              title="Edit Replacement"
-              target={
-                <ReplacementForm
-                  title="Edit Text Replacement"
-                  submitTitle="Save Replacement"
-                  existing={replacements}
-                  initialReplacement={replacement}
-                  onSubmit={(input) =>
-                    onPersist(
-                      updateReplacement(replacements, replacement.uuid, input),
-                      "Updating replacement",
-                    )
+            {isSelecting ? (
+              <>
+                <Action
+                  icon={selectionIcon(isSelected)}
+                  title={
+                    isSelected ? "Deselect Replacement" : "Select Replacement"
+                  }
+                  shortcut={{ modifiers: [], key: "space" }}
+                  onAction={() => onToggleSelection(replacement.uuid)}
+                />
+                {selectedReplacementIds.length ? (
+                  <Action.Push
+                    icon={Icon.Tag}
+                    title={selectedAddTagTitle(selectedReplacementIds.length)}
+                    shortcut={{ modifiers: ["cmd"], key: "return" }}
+                    target={
+                      <AddTagForm
+                        existingTags={uniqueTags(replacements)}
+                        onSubmit={(tag) =>
+                          onPersist(
+                            addTagsToReplacements(
+                              replacements,
+                              selectedReplacementIds,
+                              tag,
+                            ),
+                            "Adding tag to selected replacements",
+                          )
+                        }
+                      />
+                    }
+                  />
+                ) : null}
+              </>
+            ) : (
+              <>
+                <Action.Push
+                  icon={Icon.Pencil}
+                  title="Edit Replacement"
+                  target={
+                    <ReplacementForm
+                      title="Edit Text Replacement"
+                      submitTitle="Save Replacement"
+                      existing={replacements}
+                      initialReplacement={replacement}
+                      onSubmit={(input) =>
+                        onPersist(
+                          updateReplacement(
+                            replacements,
+                            replacement.uuid,
+                            input,
+                          ),
+                          "Updating replacement",
+                        )
+                      }
+                    />
                   }
                 />
-              }
-            />
-            <Action.Push
-              icon={Icon.Duplicate}
-              title="Clone Replacement"
-              shortcut={{ modifiers: ["cmd"], key: "d" }}
-              target={
-                <ReplacementForm
-                  title="Clone Text Replacement"
-                  submitTitle="Create Clone"
-                  existing={replacements}
-                  initialReplacement={{
-                    ...replacement,
-                    trigger: `${replacement.trigger}-copy`,
+                <Action.Push
+                  icon={Icon.Duplicate}
+                  title="Clone Replacement"
+                  shortcut={{ modifiers: ["cmd"], key: "d" }}
+                  target={
+                    <ReplacementForm
+                      title="Clone Text Replacement"
+                      submitTitle="Create Clone"
+                      existing={replacements}
+                      initialReplacement={{
+                        ...replacement,
+                        trigger: `${replacement.trigger}-copy`,
+                      }}
+                      forceCreate
+                      onSubmit={(input) =>
+                        onPersist(
+                          cloneReplacement(
+                            replacements,
+                            replacement.uuid,
+                            input,
+                          ),
+                          "Cloning replacement",
+                        )
+                      }
+                    />
+                  }
+                />
+                <Action
+                  icon={Icon.Trash}
+                  title="Delete Replacement"
+                  style={Action.Style.Destructive}
+                  shortcut={{ modifiers: ["ctrl"], key: "x" }}
+                  onAction={async () => {
+                    if (
+                      await confirmAlert({
+                        title: "Delete Text Replacement?",
+                        message: `${replacement.trigger} -> ${replacement.replacementText}`,
+                        primaryAction: {
+                          title: "Delete",
+                          style: Alert.ActionStyle.Destructive,
+                        },
+                      })
+                    ) {
+                      await onPersist(
+                        deleteReplacement(replacements, replacement.uuid),
+                        "Deleting replacement",
+                      );
+                    }
                   }}
-                  forceCreate
-                  onSubmit={(input) =>
-                    onPersist(
-                      cloneReplacement(replacements, replacement.uuid, input),
-                      "Cloning replacement",
-                    )
-                  }
                 />
-              }
-            />
-            <Action
-              icon={Icon.Trash}
-              title="Delete Replacement"
-              style={Action.Style.Destructive}
-              shortcut={{ modifiers: ["ctrl"], key: "x" }}
-              onAction={async () => {
-                if (
-                  await confirmAlert({
-                    title: "Delete Text Replacement?",
-                    message: `${replacement.trigger} -> ${replacement.replacementText}`,
-                    primaryAction: {
-                      title: "Delete",
-                      style: Alert.ActionStyle.Destructive,
-                    },
-                  })
-                ) {
-                  await onPersist(
-                    deleteReplacement(replacements, replacement.uuid),
-                    "Deleting replacement",
-                  );
+              </>
+            )}
+          </ActionPanel.Section>
+          {isSelecting ? null : (
+            <ActionPanel.Section>
+              <Action.CopyToClipboard
+                title="Copy Trigger"
+                content={replacement.trigger}
+                shortcut={{ modifiers: ["cmd"], key: "c" }}
+              />
+              <Action.CopyToClipboard
+                title="Copy Replacement Text"
+                content={replacement.replacementText}
+              />
+              <Action.CopyToClipboard
+                title="Copy Replacement JSON"
+                content={exportReplacementsToJson([replacement])}
+              />
+              <Action
+                icon={Icon.Download}
+                title="Export Selected JSON"
+                onAction={() =>
+                  exportToSupportPath(
+                    [replacement],
+                    `text-replacement-${replacement.trigger}.json`,
+                  )
                 }
-              }}
-            />
-          </ActionPanel.Section>
-          <ActionPanel.Section>
-            <Action.CopyToClipboard
-              title="Copy Trigger"
-              content={replacement.trigger}
-              shortcut={{ modifiers: ["cmd"], key: "c" }}
-            />
-            <Action.CopyToClipboard
-              title="Copy Replacement Text"
-              content={replacement.replacementText}
-            />
-            <Action.CopyToClipboard
-              title="Copy Replacement JSON"
-              content={exportReplacementsToJson([replacement])}
-            />
-            <Action
-              icon={Icon.Download}
-              title="Export Selected JSON"
-              onAction={() =>
-                exportToSupportPath(
-                  [replacement],
-                  `text-replacement-${replacement.trigger}.json`,
-                )
-              }
-            />
-          </ActionPanel.Section>
+              />
+            </ActionPanel.Section>
+          )}
           <GlobalActionSections
             replacements={replacements}
             tagColors={tagColors}
+            isSelecting={isSelecting}
+            selectedReplacementIds={selectedReplacementIds}
+            onStartSelecting={onStartSelecting}
+            onSelectAll={onSelectAll}
+            onClearSelection={onClearSelection}
+            onStopSelecting={onStopSelecting}
             onPersist={onPersist}
             onPersistTagColors={onPersistTagColors}
           />
@@ -312,6 +445,18 @@ function statusIcon(status: "enabled" | "disabled") {
   return status === "enabled"
     ? { source: Icon.CheckCircle, tintColor: Color.Green }
     : { source: Icon.XMarkCircle, tintColor: Color.SecondaryText };
+}
+
+function selectionIcon(isSelected: boolean) {
+  return isSelected
+    ? { source: Icon.CheckCircle, tintColor: Color.Blue }
+    : { source: Icon.Circle, tintColor: Color.SecondaryText };
+}
+
+function selectedAddTagTitle(selectedCount: number): string {
+  return `Add Tag to ${selectedCount} Selected Replacement${
+    selectedCount === 1 ? "" : "s"
+  }`;
 }
 
 function tagAccessories(tags: ReplacementListRowTag[]): List.Item.Accessory[] {
@@ -332,6 +477,12 @@ function raycastColorForTag(
 function GlobalActions(props: {
   replacements: TextReplacement[];
   tagColors: TagColorsByTag;
+  isSelecting: boolean;
+  selectedReplacementIds: string[];
+  onStartSelecting(): void;
+  onSelectAll(): void;
+  onClearSelection(): void;
+  onStopSelecting(): void;
   onReload?: () => Promise<void>;
   onPersist(next: TextReplacement[], title: string): Promise<void>;
   onPersistTagColors(next: TagColorsByTag): Promise<void>;
@@ -346,70 +497,142 @@ function GlobalActions(props: {
 function GlobalActionSections(props: {
   replacements: TextReplacement[];
   tagColors: TagColorsByTag;
+  isSelecting: boolean;
+  selectedReplacementIds: string[];
+  onStartSelecting(): void;
+  onSelectAll(): void;
+  onClearSelection(): void;
+  onStopSelecting(): void;
   onReload?: () => Promise<void>;
   onPersist(next: TextReplacement[], title: string): Promise<void>;
   onPersistTagColors(next: TagColorsByTag): Promise<void>;
 }) {
-  const { replacements, tagColors, onReload, onPersist, onPersistTagColors } =
-    props;
+  const {
+    replacements,
+    tagColors,
+    isSelecting,
+    selectedReplacementIds,
+    onStartSelecting,
+    onSelectAll,
+    onClearSelection,
+    onStopSelecting,
+    onReload,
+    onPersist,
+    onPersistTagColors,
+  } = props;
   const existingTags = uniqueTags(replacements);
 
   return (
     <>
       <ActionPanel.Section>
-        <Action.Push
-          icon={Icon.Plus}
-          title="Create Text Replacement"
-          shortcut={{ modifiers: ["cmd"], key: "n" }}
-          target={
-            <ReplacementForm
-              title="Create Text Replacement"
-              submitTitle="Create Replacement"
-              existing={replacements}
-              onSubmit={(input) =>
-                onPersist(
-                  createReplacement(replacements, input),
-                  "Creating replacement",
-                )
-              }
+        {isSelecting ? (
+          <>
+            {selectedReplacementIds.length ? (
+              <Action.Push
+                icon={Icon.Tag}
+                title={selectedAddTagTitle(selectedReplacementIds.length)}
+                shortcut={{ modifiers: ["cmd"], key: "return" }}
+                target={
+                  <AddTagForm
+                    existingTags={existingTags}
+                    onSubmit={(tag) =>
+                      onPersist(
+                        addTagsToReplacements(
+                          replacements,
+                          selectedReplacementIds,
+                          tag,
+                        ),
+                        "Adding tag to selected replacements",
+                      )
+                    }
+                  />
+                }
+              />
+            ) : null}
+            <Action
+              icon={Icon.CheckCircle}
+              title="Select All Replacements"
+              shortcut={{ modifiers: [], key: "a" }}
+              onAction={onSelectAll}
             />
-          }
-        />
-        <Action.Push
-          icon={Icon.Tag}
-          title="Set Tag Colors"
-          shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
-          target={
-            <TagColorsForm
-              tags={existingTags}
-              tagColors={tagColors}
-              onSubmit={onPersistTagColors}
+            <Action
+              icon={Icon.XMarkCircle}
+              title="Clear Selection"
+              shortcut={{ modifiers: ["cmd", "shift"], key: "x" }}
+              onAction={onClearSelection}
             />
-          }
-        />
-        <Action.Push
-          icon={Icon.Upload}
-          title="Import JSON"
-          target={
-            <ImportForm
-              existing={replacements}
-              onImport={(imported) =>
-                onPersist(
-                  [...replacements, ...imported],
-                  "Importing replacements",
-                )
-              }
+            <Action
+              icon={Icon.ArrowLeft}
+              title="Done Selecting"
+              shortcut={{ modifiers: ["cmd"], key: "escape" }}
+              onAction={onStopSelecting}
             />
-          }
-        />
-        <Action
-          icon={Icon.Download}
-          title="Export All JSON"
-          onAction={() =>
-            exportToSupportPath(replacements, "text-replacements.json")
-          }
-        />
+          </>
+        ) : (
+          <Action
+            icon={Icon.CheckCircle}
+            title="Select Multiple Replacements"
+            shortcut={{ modifiers: ["cmd"], key: "s" }}
+            onAction={onStartSelecting}
+          />
+        )}
       </ActionPanel.Section>
+      {!isSelecting ? (
+        <ActionPanel.Section>
+          <Action.Push
+            icon={Icon.Plus}
+            title="Create Text Replacement"
+            shortcut={{ modifiers: ["ctrl"], key: "c" }}
+            target={
+              <ReplacementForm
+                title="Create Text Replacement"
+                submitTitle="Create Replacement"
+                existing={replacements}
+                onSubmit={(input) =>
+                  onPersist(
+                    createReplacement(replacements, input),
+                    "Creating replacement",
+                  )
+                }
+              />
+            }
+          />
+          <Action.Push
+            icon={Icon.Circle}
+            title="Set Tag Colors"
+            shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+            target={
+              <TagColorsForm
+                tags={existingTags}
+                tagColors={tagColors}
+                onSubmit={onPersistTagColors}
+              />
+            }
+          />
+          <Action.Push
+            icon={Icon.Upload}
+            title="Import JSON"
+            target={
+              <ImportForm
+                existing={replacements}
+                onImport={(imported) =>
+                  onPersist(
+                    [...replacements, ...imported],
+                    "Importing replacements",
+                  )
+                }
+              />
+            }
+          />
+          <Action
+            icon={Icon.Download}
+            title="Export All JSON"
+            onAction={() =>
+              exportToSupportPath(replacements, "text-replacements.json")
+            }
+          />
+        </ActionPanel.Section>
+      ) : null}
       <ActionPanel.Section>
         {onReload ? (
           <Action
@@ -425,6 +648,76 @@ function GlobalActionSections(props: {
         />
       </ActionPanel.Section>
     </>
+  );
+}
+
+interface AddTagFormValues {
+  tag: string;
+}
+
+function AddTagForm(props: {
+  existingTags: string[];
+  onSubmit(tag: string): Promise<void>;
+}) {
+  const { pop } = useNavigation();
+  const { handleSubmit, itemProps, values, setValue, focus } =
+    useForm<AddTagFormValues>({
+      initialValues: {
+        tag: "",
+      },
+      validation: {
+        tag: (value) => {
+          if (normalizeTags(value).length !== 1) {
+            return "Enter exactly one tag.";
+          }
+        },
+      },
+      async onSubmit(values) {
+        await props.onSubmit(values.tag);
+        pop();
+      },
+    });
+  const tagSuggestions = useMemo(
+    () => suggestTags(values.tag, props.existingTags),
+    [props.existingTags, values.tag],
+  );
+  const topTagSuggestion = tagSuggestions[0];
+
+  function acceptTagSuggestion(tag: string) {
+    setValue("tag", tag);
+    focus("tag");
+  }
+
+  return (
+    <Form
+      navigationTitle="Add Tag to Replacements"
+      actions={
+        <ActionPanel>
+          {topTagSuggestion ? (
+            <Action
+              icon={Icon.Plus}
+              title={`Use Tag "${topTagSuggestion}"`}
+              shortcut={{ modifiers: [], key: "return" }}
+              onAction={() => acceptTagSuggestion(topTagSuggestion)}
+            />
+          ) : null}
+          <Action.SubmitForm
+            icon={Icon.Tag}
+            title="Add Tag"
+            shortcut={{ modifiers: [], key: "return" }}
+            onSubmit={handleSubmit}
+          />
+        </ActionPanel>
+      }
+    >
+      <Form.TextField title="Tag" placeholder="personal" {...itemProps.tag} />
+      {tagSuggestions.length ? (
+        <Form.Description
+          title="Matching Tags"
+          text={tagSuggestions.join(", ")}
+        />
+      ) : null}
+    </Form>
   );
 }
 
