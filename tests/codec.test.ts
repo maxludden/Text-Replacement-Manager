@@ -75,6 +75,32 @@ describe("import and export JSON schema", () => {
     });
   });
 
+  it("exports tag colors for tags in the exported replacements", () => {
+    const exported = exportReplacementsToJson(
+      [
+        { uuid: "uuid-omw", trigger: "omw", replacementText: "On my way!", tags: ["Favorite"], enabled: true },
+      ],
+      {
+        Favorite: "Blue",
+        Unused: "Red",
+      },
+    );
+
+    expect(JSON.parse(exported)).toEqual({
+      "Text Replacements": [
+        {
+          uuid: "uuid-omw",
+          trigger: "omw",
+          "replacement-text": "On my way!",
+          tags: ["Favorite"],
+        },
+      ],
+      "Tag Colors": {
+        Favorite: "Blue",
+      },
+    });
+  });
+
   it("imports valid schema and rejects conflicts", () => {
     const imported = parseImportedReplacements(
       JSON.stringify({
@@ -89,6 +115,7 @@ describe("import and export JSON schema", () => {
     expect(imported).toEqual({
       accepted: [{ uuid: "uuid-brb", trigger: "brb", replacementText: "Be right back", tags: ["chat"], enabled: true }],
       skipped: ["omw"],
+      tagColors: {},
     });
 
     expect(() =>
@@ -113,5 +140,27 @@ describe("import and export JSON schema", () => {
         [{ uuid: "existing", trigger: "omw", replacementText: "On my way!", tags: [], enabled: true }],
       ),
     ).toThrow('Trigger "omw" appears more than once in the import file.');
+  });
+
+  it("imports tag colors for known imported and existing tags", () => {
+    const imported = parseImportedReplacements(
+      JSON.stringify({
+        "Text Replacements": [
+          { uuid: "uuid-brb", trigger: "brb", "replacement-text": "Be right back", tags: ["chat"] },
+        ],
+        "Tag Colors": {
+          chat: "Blue",
+          existing: "Red",
+          unknown: "Green",
+          invalid: "NotAColor",
+        },
+      }),
+      [{ uuid: "existing", trigger: "omw", replacementText: "On my way!", tags: ["existing"], enabled: true }],
+    );
+
+    expect(imported.tagColors).toEqual({
+      chat: "Blue",
+      existing: "Red",
+    });
   });
 });

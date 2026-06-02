@@ -207,10 +207,7 @@ export class SystemReplacementStore {
           const baseName = fileName.replace(/\.TextReplacements\.db$/, "");
           return ["", "-wal", "-shm"].map((suffix) =>
             removeFileIfExists(
-              join(
-                backupsPath,
-                `${baseName}.TextReplacements.db${suffix}`,
-              ),
+              join(backupsPath, `${baseName}.TextReplacements.db${suffix}`),
             ),
           );
         }),

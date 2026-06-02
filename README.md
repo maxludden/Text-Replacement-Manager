@@ -10,7 +10,7 @@ Text Replacement Manager reads your system Text Replacement list, lets you creat
 
 - Browse macOS Text Replacements in Raycast.
 - Create, edit, clone, and delete replacements.
-- Create new replacements from the Manage Text Replacements action panel.
+- Create new replacements from a dedicated Raycast command or the manager action panel.
 - Merge tags into an existing replacement when creating the same trigger and replacement text again.
 - Search by trigger, replacement text, or tag.
 - Validate unique triggers with the macOS-friendly `^\S{1,64}$` pattern.
@@ -19,11 +19,31 @@ Text Replacement Manager reads your system Text Replacement list, lets you creat
 - Import and export replacements as JSON.
 - Open macOS Text Replacement settings from Raycast.
 
-## Command
+## Commands
 
 ### Manage Text Replacements
 
-View and manage your macOS Text Replacements in one Raycast list. Use the action panel to create replacements, edit existing rows, clone entries, export JSON, import JSON, set tag colors, reload from macOS, or open System Settings. If System Settings is already open, close and reopen it to see newly synced replacements.
+View and manage your macOS Text Replacements in one Raycast list. Use the action panel to edit existing rows, clone entries, copy replacement data, add tags to selected replacements, reload from macOS, or open System Settings. If System Settings is already open, close and reopen it to see newly synced replacements.
+
+### Create Text Replacement
+
+Open directly to the create form. It uses the same validation, tag suggestions, duplicate tag merge behavior, and macOS sync path as the manager command.
+
+### Import Text Replacements
+
+Choose a JSON file and import new replacements into macOS.
+
+### Export Text Replacements
+
+Export all current replacements as JSON. The exported file path is copied to the clipboard.
+
+### Set Tag Colors
+
+Assign preset, named, RGB, or hex colors to tags.
+
+### Open Text Replacement Settings
+
+Open macOS Text Replacement settings from Raycast.
 
 ## Privacy
 
